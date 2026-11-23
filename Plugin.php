@@ -790,7 +790,7 @@ class Plugin implements PluginInterface
             . 'try{t=localStorage.getItem(k)||""}catch(e){}'
             . 'if(t!=="dark"&&t!=="light"){c=document.cookie.match(/(?:^|; )studio_panel_theme=([^;]*)/);'
             . 'if(c){try{t=decodeURIComponent(c[1])}catch(e){t=""}}}'
-            . 'if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}'
+            . 'if(t!=="dark"&&t!=="light"){t="light"}'
             . 'd.setAttribute("data-sp-theme",t);d.style.colorScheme=t;d.classList.add("sp-js")}());';
     }
 
