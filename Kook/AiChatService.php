@@ -111,12 +111,9 @@ final class AiChatService
             }
         }
 
-        $autoChannelId = trim((string) ($this->settings['aiChannelId'] ?? ''));
-        $autoReply = '1' === (string) ($this->settings['aiReplyAll'] ?? '0')
-            && '' !== $autoChannelId
-            && $channelId === $autoChannelId;
-
-        if (!$autoReply && !$this->isBotMentioned($content, $event, $extra, $botId, $botName)) {
+        // 角色扮演只响应明确 @机器人 的消息。频道自动回复不能绕过 mention，
+        // 否则普通聊天也会触发 AI。
+        if (!$this->isBotMentioned($content, $event, $extra, $botId, $botName)) {
             if (false !== strpos($content, '(met)') || false !== strpos($content, '@')) {
                 self::log('AI 跳过：未匹配到机器人 mention', [
                     'bot_id' => $botId,
@@ -266,12 +263,10 @@ final class AiChatService
         }
 
         // Some KOOK gateways do not populate mention[] for bot mentions.
-        if ([] === $mentions && false !== strpos($content, '@')) {
-            return true;
-        }
-
+        // Only an explicit @BotName is accepted; a random @user must not
+        // trigger the AI.
         if ('' !== $botName) {
-            foreach (['@' . $botName, $botName] as $needle) {
+            foreach (['@' . $botName, '@' . $botName . '#'] as $needle) {
                 if ('' !== $needle && false !== strpos($content, $needle)) {
                     return true;
                 }
