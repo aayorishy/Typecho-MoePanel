@@ -11,6 +11,12 @@ MoePanel 是一套面向 Typecho 的设计师后台插件。它不修改 Typecho
 
 ![MoePanel 1.0.0](docs/images/hero.png)
 
+## 控制台
+
+默认浅色主题，支持手动切换深色。侧边栏、侧边栏折叠、搜索、文章入口、KOOK 状态与统计卡片都在同一个工作区。
+
+![MoePanel 控制台](docs/images/console.png)
+
 ## 功能
 
 ![功能总览](docs/images/features.png)
