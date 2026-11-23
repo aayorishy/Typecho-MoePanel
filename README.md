@@ -110,7 +110,7 @@ Typecho
 
 | 项目 | 要求 |
 |---|---|
-| Typecho | 1.3+ |
+| Typecho | 1.2+ |
 | PHP | 8.1+ |
 | 数据库 | MySQL / MariaDB / SQLite |
 | PHP 扩展 | cURL、mbstring、ZipArchive |
