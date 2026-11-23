@@ -19,10 +19,6 @@ MoePanel 在不修改 Typecho 核心文件的前提下，为后台提供一套�
 
 ![设置页](docs/images/settings.png)
 
-### 深色模式
-
-![深色模式](docs/images/dark.png)
-
 ### KOOK 登录
 
 ![KOOK 登录](docs/images/login.png)
