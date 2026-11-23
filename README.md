@@ -146,11 +146,8 @@ MoePanel 在不修改 Typecho 核心文件的前提下，为后台提供一套�
 
 ### 欢迎消息
 
-- 改为纯文字 KMarkdown，不再发送卡片或图片
 - 支持 `{user}`、`{username}`、`{site}`、`{count}`
 - `{count}` 使用 KOOK 服务器成员数量
-- 欢迎设置只保留频道与欢迎文字
-- 新增欢迎测试与 `moepanel-welcome.log`
 
 ### 身份组领取
 
@@ -160,7 +157,6 @@ MoePanel 在不修改 Typecho 核心文件的前提下，为后台提供一套�
 - `role_id` 以整数 JSON 提交
 - 操作前检查是否已拥有
 - 操作后重新查询成员身份组验证
-- 失败原因私信反馈，写入 `moepanel-role-claim.log`
 
 ### 角色扮演
 
@@ -169,20 +165,6 @@ MoePanel 在不修改 Typecho 核心文件的前提下，为后台提供一套�
 - 每个服务器 / 用户独立上下文
 - 支持频道自动回复、测试连接、重置上下文
 - 入口、跳过原因和错误全部写入日志
-
-### 兼容与修复
-
-- 修复从旧版本升级后设置页无法打开的问题
-- 保留旧版 `welcomeTitle`、`welcomeText`、`welcomeImage` 选项的隐藏兼容字段
-- 修复私有仓库更新检测
-- 修复机器状态 PID 识别与重复启动提示
-
-### 更新检测
-
-- 支持 GitHub Releases 检测
-- 支持私有仓库 GitHub API Token
-- 更新包 SHA-256 校验
-- 自动更新前检查 ZipArchive 与目录权限
 
 ## 环境要求
 
@@ -193,8 +175,6 @@ MoePanel 在不修改 Typecho 核心文件的前提下，为后台提供一套�
 - PHP ZipArchive（自动更新）
 - 可写的插件目录（自动更新）
 - KOOK 机器人 Token 与服务器
-
-欢迎消息为纯文字，**不需要 GD / FreeType**。
 
 ## 安装
 
@@ -221,48 +201,42 @@ MoePanel 在不修改 Typecho 核心文件的前提下，为后台提供一套�
 
    也可以直接在后台「机器状态」点击「启用」。
 
-## 宝塔自动保活
-
-WebSocket 断线会自动重连；如果 Bot 进程本身退出，可以用宝塔守护它，无需每天手动重启。
-
-### 方案 A：宝塔 Supervisor 管理器
-
-安装宝塔「Supervisor 管理器」后添加进程：
-
-```text
-名称：moepanel-bot
-运行目录：/www/wwwroot/ayko-blog
-启动命令：/www/server/php/82/bin/php usr/plugins/MoePanel/kook-bot.php
-进程数：1
-自动启动：开启
-自动重启：开启
-```
-
-PHP 路径按宝塔实际版本修改。
-
-### 方案 B：宝塔计划任务
+### 宝塔计划任务
 
 添加 Shell 任务，每分钟执行：
 
-```bash
-/bin/bash /www/wwwroot/ayko-blog/usr/plugins/MoePanel/bin/watchdog.sh
-```
+#!/bin/bash
 
-脚本会：
+cd /www/wwwroot/ayko-blog || exit 1
 
-- 检查 `/tmp/moepanel-kook-bot/bot.pid`
-- 检查 `/tmp/moepanel-kook-bot/heartbeat`
-- 进程不存在时自动启动
-- 心跳超过 90 秒时重启进程
-- 避免重复启动
+# 已有 MoePanel Bot 时不重复启动
+if pgrep -f '[M]oePanel/kook-bot.php' >/dev/null 2>&1; then
+    exit 0
+fi
 
-日志：
+# 自动寻找 PHP CLI，找不到就用宝塔常见路径
+PHP_BIN="$(command -v php 2>/dev/null)"
 
-```text
-/tmp/moepanel-kook-bot/watchdog.log
-```
+if [ -z "$PHP_BIN" ]; then
+    for candidate in /www/server/php/*/bin/php; do
+        if [ -x "$candidate" ]; then
+            PHP_BIN="$candidate"
+            break
+        fi
+    done
+fi
 
-如果服务器上还有旧 `StudioPanel` Bot，请先停止一次，避免两个 Bot 争抢同一个 Token。
+if [ -z "$PHP_BIN" ]; then
+    echo "[$(date '+%F %T')] 找不到 PHP CLI" >> /tmp/moepanel-kook-bot/watchdog.log
+    exit 1
+fi
+
+mkdir -p /tmp/moepanel-kook-bot
+
+nohup "$PHP_BIN" usr/plugins/MoePanel/kook-bot.php \
+    >> /tmp/moepanel-kook-bot/bot.log 2>&1 &
+
+echo "[$(date '+%F %T')] 已启动 MoePanel Bot" >> /tmp/moepanel-kook-bot/watchdog.log
 
 ## 升级
 
@@ -331,28 +305,6 @@ MoePanel/
 ```
 
 ## 常见问题
-
-### Bot 显示未运行，但实际在线
-
-检查是否还有旧进程：
-
-```bash
-ps -ef | grep -E 'kook-bot|StudioPanel|MoePanel' | grep -v grep
-```
-
-### 欢迎设置不生效
-
-确认新 Bot 进程使用的是：
-
-```text
-usr/plugins/MoePanel/kook-bot.php
-```
-
-并查看：
-
-```bash
-tail -n 20 /tmp/moepanel-welcome.log
-```
 
 ### 身份组没有授予
 
