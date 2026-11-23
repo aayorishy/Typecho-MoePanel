@@ -131,7 +131,7 @@ Typecho
 ### 1. 备份
 
 ```bash
-cd /www/wwwroot/ayko-blog
+cd /www/wwwroot/your-blog
 cp -a usr/plugins/MoePanel usr/plugins/MoePanel.bak
 ```
 
@@ -190,7 +190,7 @@ https://你的域名/admin/login.php
 手动启动一次：
 
 ```bash
-cd /www/wwwroot/ayko-blog
+cd /www/wwwroot/your-blog
 php usr/plugins/MoePanel/kook-bot.php
 ```
 
@@ -208,7 +208,7 @@ WebSocket 断线会自动重连；进程退出由保活任务拉起。
 
 ```text
 名称：moepanel-bot
-运行目录：/www/wwwroot/ayko-blog
+运行目录：/www/wwwroot/your-blog
 启动命令：/www/server/php/82/bin/php usr/plugins/MoePanel/kook-bot.php
 进程数：1
 自动启动：开启
@@ -236,7 +236,7 @@ Shell 脚本
 ```bash
 #!/bin/bash
 
-cd /www/wwwroot/ayko-blog || exit 1
+cd /www/wwwroot/your-blog || exit 1
 
 # 已有 MoePanel Bot 时不重复启动
 if pgrep -f '[M]oePanel/kook-bot.php' >/dev/null 2>&1; then
