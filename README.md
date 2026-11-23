@@ -3,7 +3,7 @@
 > **Typecho × KOOK 一体化控制台 · 1.0.0 正式版**
 
 [![Release](https://img.shields.io/github/v/release/aayorishy/Typecho-MoePanel?label=release)](https://github.com/aayorishy/Typecho-MoePanel/releases)
-[![Typecho](https://img.shields.io/badge/Typecho-1.3%2B-5e6ad2)](https://typecho.org)
+[![Typecho](https://img.shields.io/badge/Typecho-1.2%2B-5e6ad2)](https://typecho.org)
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4)](https://www.php.net)
 [![License](https://img.shields.io/badge/license-MIT-0f9f6e)](LICENSE)
 
