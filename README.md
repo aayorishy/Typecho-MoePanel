@@ -225,6 +225,49 @@ MoePanel 在不修改 Typecho 核心文件的前提下，为后台提供一套�
 
    也可以直接在后台「机器状态」点击「启用」。
 
+## 宝塔自动保活
+
+WebSocket 断线会自动重连；如果 Bot 进程本身退出，可以用宝塔守护它，无需每天手动重启。
+
+### 方案 A：宝塔 Supervisor 管理器
+
+安装宝塔「Supervisor 管理器」后添加进程：
+
+```text
+名称：moepanel-bot
+运行目录：/www/wwwroot/ayko-blog
+启动命令：/www/server/php/82/bin/php usr/plugins/MoePanel/kook-bot.php
+进程数：1
+自动启动：开启
+自动重启：开启
+```
+
+PHP 路径按宝塔实际版本修改。
+
+### 方案 B：宝塔计划任务
+
+添加 Shell 任务，每分钟执行：
+
+```bash
+/bin/bash /www/wwwroot/ayko-blog/usr/plugins/MoePanel/bin/watchdog.sh
+```
+
+脚本会：
+
+- 检查 `/tmp/moepanel-kook-bot/bot.pid`
+- 检查 `/tmp/moepanel-kook-bot/heartbeat`
+- 进程不存在时自动启动
+- 心跳超过 90 秒时重启进程
+- 避免重复启动
+
+日志：
+
+```text
+/tmp/moepanel-kook-bot/watchdog.log
+```
+
+如果服务器上还有旧 `StudioPanel` Bot，请先停止一次，避免两个 Bot 争抢同一个 Token。
+
 ## 升级
 
 1. 备份插件目录和数据库。

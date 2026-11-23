@@ -21,6 +21,7 @@ final class BotDaemon
     private bool $awaitingPong = false;
     private bool $resuming = false;
     private bool $running = true;
+    private float $lastHeartbeat = 0.0;
     private string $botId = '';
     private array $settings;
 
@@ -49,6 +50,8 @@ final class BotDaemon
         $this->log('WebSocket Bot 启动', ['resume' => '' !== $this->sessionId, 'sn' => $this->lastSn]);
 
         while ($this->running) {
+            $this->heartbeat();
+
             try {
                 $this->resuming = '' !== $this->sessionId;
                 $this->connectAndRun();
@@ -108,6 +111,7 @@ final class BotDaemon
         $hello = false;
 
         while ($this->running) {
+            $this->heartbeat();
             $message = $socket->readMessage(1.0);
 
             if (null !== $message) {
@@ -309,6 +313,24 @@ final class BotDaemon
 
         $data = json_decode((string) @file_get_contents($file), true);
         return is_array($data) ? $data : [];
+    }
+
+    private function heartbeat(): void
+    {
+        $now = microtime(true);
+
+        if ($now - $this->lastHeartbeat < 10) {
+            return;
+        }
+
+        $this->lastHeartbeat = $now;
+        $dir = sys_get_temp_dir() . '/moepanel-kook-bot';
+
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0700, true);
+        }
+
+        @file_put_contents($dir . '/heartbeat', (string) time());
     }
 
     private function log(string $message, array $context = []): void
