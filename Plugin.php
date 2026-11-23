@@ -6,6 +6,7 @@ use Typecho\Common;
 use Typecho\Plugin as TypechoPlugin;
 use Typecho\Plugin\PluginInterface;
 use Typecho\Widget\Helper\Form;
+use Typecho\Widget\Helper\Form\Element\Hidden;
 use Typecho\Widget\Helper\Form\Element\Radio;
 use Typecho\Widget\Helper\Form\Element\Text;
 use Typecho\Widget\Helper\Form\Element\Textarea;
@@ -550,6 +551,20 @@ class Plugin implements PluginInterface
             '主题辅色',
             '用于渐变按钮和高亮，建议选择主色的浅一档颜色。'
         ));
+
+        // 兼容旧版本已保存的选项。Typecho 会遍历 plugin:MoePanel 的全部
+        // 键并调用 $form->getInput($key)，删除表单项后必须保留隐藏输入，
+        // 否则旧站点升级后会因 getInput() 返回 null 而无法打开设置页。
+        foreach ([
+            'welcomeTitle' => 'WELCOME',
+            'welcomeText' => '',
+            'welcomeImage' => '',
+        ] as $legacyKey => $legacyDefault) {
+            $form->addInput(new Hidden(
+                $legacyKey,
+                (string) ($settings[$legacyKey] ?? $legacyDefault)
+            ));
+        }
     }
 
     public static function configHandle(array $settings, bool $isInit = false): bool
