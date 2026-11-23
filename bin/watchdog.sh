@@ -6,7 +6,9 @@
 #
 set -u
 
-ROOT="${MOEPANEL_ROOT:-/www/wwwroot/ayko-blog}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+ROOT="${MOEPANEL_ROOT:-$DEFAULT_ROOT}"
 PLUGIN="${MOEPANEL_PLUGIN:-$ROOT/usr/plugins/MoePanel}"
 RUN_DIR="${MOEPANEL_RUN_DIR:-/tmp/moepanel-kook-bot}"
 PID_FILE="$RUN_DIR/bot.pid"
