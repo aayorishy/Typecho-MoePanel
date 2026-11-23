@@ -45,6 +45,7 @@ final class BotDaemon
         $this->sessionId = (string) ($session['session_id'] ?? '');
         $this->lastSn = (int) ($session['sn'] ?? 0);
         $backoff = 2;
+        $reconnects = 0;
         $this->log('WebSocket Bot 启动', ['resume' => '' !== $this->sessionId, 'sn' => $this->lastSn]);
 
         while ($this->running) {
@@ -54,10 +55,12 @@ final class BotDaemon
                 $backoff = 2;
             } catch (\Throwable $exception) {
                 $this->closeSocket();
+                $reconnects++;
                 $this->log('WebSocket 连接中断', [
                     'error' => $exception->getMessage(),
                     'resume' => '' !== $this->sessionId,
                     'sn' => $this->lastSn,
+                    'reconnects' => $reconnects,
                 ]);
             }
 
@@ -65,10 +68,10 @@ final class BotDaemon
                 break;
             }
 
-            $sleep = min(60, $backoff);
-            $this->log('WebSocket 即将重连', ['seconds' => $sleep]);
+            $sleep = min(60, max(2, $backoff + random_int(0, 3)));
+            $this->log('WebSocket 即将重连', ['seconds' => $sleep, 'attempt' => $reconnects + 1]);
             sleep($sleep);
-            $backoff = min(60, $backoff * 2);
+            $backoff = min(60, max(2, $backoff * 2));
             $session = $this->loadSession();
 
             if ([] !== $session) {
@@ -150,6 +153,9 @@ final class BotDaemon
                         $this->sessionId = (string) ($data['session_id'] ?? $this->sessionId);
                         $this->saveSession();
                         $this->log('WebSocket 会话恢复完成', ['sn' => $this->lastSn]);
+                    } elseif (9 === $signal) {
+                        $this->clearSession();
+                        throw new WebSocketException('会话已失效，重新建立连接');
                     }
                 }
             }
