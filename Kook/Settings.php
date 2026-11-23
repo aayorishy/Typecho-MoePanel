@@ -63,6 +63,7 @@ class Settings
             'accentColor2' => '#7c6cff',
             'uploadChannelId' => '',
             'githubSecret' => '',
+            'githubApiToken' => '',
             'githubChannelId' => '',
             'githubCardNote' => '',
             'welcomeChannelId' => '',
@@ -191,6 +192,7 @@ class Settings
             ? (string) ($raw['uploadChannelId'] ?? '')
             : '';
         $out['githubSecret'] = mb_substr(trim((string) ($raw['githubSecret'] ?? '')), 0, 200, 'UTF-8');
+        $out['githubApiToken'] = mb_substr(trim((string) ($raw['githubApiToken'] ?? '')), 0, 300, 'UTF-8');
         $out['githubChannelId'] = preg_match('/^\d{0,32}$/', (string) ($raw['githubChannelId'] ?? ''))
             ? (string) ($raw['githubChannelId'] ?? '')
             : '';

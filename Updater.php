@@ -11,6 +11,15 @@ final class Updater
 {
     public const REPO = 'aayorishy/Typecho-MoePanel';
 
+    private static function token(): string
+    {
+        try {
+            return trim((string) (Kook\Settings::load()['githubApiToken'] ?? ''));
+        } catch (\Throwable $ignored) {
+            return '';
+        }
+    }
+
     public static function check(bool $force = false): array
     {
         $cacheFile = self::cacheFile();
@@ -42,10 +51,11 @@ final class Updater
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT => 10,
             CURLOPT_CONNECTTIMEOUT => 6,
-            CURLOPT_HTTPHEADER => [
+            CURLOPT_HTTPHEADER => array_values(array_filter([
                 'Accept: application/vnd.github+json',
                 'User-Agent: MoePanel-Updater/' . Plugin::version(),
-            ],
+                '' !== self::token() ? 'Authorization: Bearer ' . self::token() : '',
+            ])),
         ]);
         $body = curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
@@ -118,7 +128,10 @@ final class Updater
             CURLOPT_FILE => $fp,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT => 60,
-            CURLOPT_HTTPHEADER => ['User-Agent: MoePanel-Updater/' . Plugin::version()],
+            CURLOPT_HTTPHEADER => array_values(array_filter([
+                'User-Agent: MoePanel-Updater/' . Plugin::version(),
+                '' !== self::token() ? 'Authorization: Bearer ' . self::token() : '',
+            ])),
         ]);
         $ok = curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);

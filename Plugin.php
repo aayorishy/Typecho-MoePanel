@@ -392,6 +392,14 @@ class Plugin implements PluginInterface
         ));
 
         $form->addInput(new Text(
+            'githubApiToken',
+            null,
+            $settings['githubApiToken'],
+            'GitHub API Token',
+            '私有仓库更新检测需要，建议只授予 repo 读取权限。'
+        ));
+
+        $form->addInput(new Text(
             'githubChannelId',
             null,
             $settings['githubChannelId'],

@@ -184,7 +184,7 @@
             group: 'KOOK',
             title: '应用设置',
             hint: '机器人凭据、账号映射、验证码策略、卡片、欢迎、身份组与 GitHub。',
-            fields: ['clientId', 'clientSecret', 'botToken', 'guildId', 'uploadChannelId', 'ownerKookId', 'ownerUid', 'codeTtl', 'resendInterval', 'maxAttempts']
+            fields: ['clientId', 'clientSecret', 'botToken', 'guildId', 'uploadChannelId', 'ownerKookId', 'ownerUid', 'codeTtl', 'resendInterval', 'maxAttempts', 'githubApiToken']
         },
         {
             id: 'welcome',
