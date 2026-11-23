@@ -375,9 +375,9 @@ class Panel
     {
         $options = Options::alloc();
         $user = User::alloc();
-        $stat = Stat::allocWithAlias('studioPanelStat');
-        $posts = RecentPosts::allocWithAlias('studioPanelRecentPosts', 'pageSize=6');
-        $comments = RecentComments::allocWithAlias('studioPanelRecentComments', 'pageSize=5');
+        $stat = Stat::alloc();
+        $posts = RecentPosts::alloc('pageSize=6');
+        $comments = RecentComments::alloc('pageSize=5');
 
         $isEditor = $user->pass('editor', true);
         $isAdmin = $user->pass('administrator', true);
