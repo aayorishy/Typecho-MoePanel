@@ -132,7 +132,15 @@ class KookClient
             $query['guild_id'] = $guildId;
         }
 
-        $result = $this->request('GET', $this->apiBase . '/user/view?' . http_build_query($query));
+        try {
+            $result = $this->request('GET', $this->apiBase . '/user/view?' . http_build_query($query));
+        } catch (KookException $e) {
+            if ('' === $guildId) {
+                throw $e;
+            }
+            $query = ['user_id' => $userId];
+            $result = $this->request('GET', $this->apiBase . '/user/view?' . http_build_query($query));
+        }
         $data = $result['data'] ?? null;
 
         if (!is_array($data) || empty($data['id'])) {

@@ -88,18 +88,7 @@ class Plugin implements PluginInterface
 
     public static function frontendHeader($header, $archive): void
     {
-        try {
-            $base = rtrim((string) Options::alloc()->pluginUrl, '/') . '/MoePanel/assets';
-        } catch (\Throwable $exception) {
-            return;
-        }
-
-        $font = $base . '/fonts/AaJiangShouZhangShouXieTi-2.ttf';
-
-        echo '<style id="sp-site-font">'
-            . '@font-face{font-family:"AaJiangShou";src:url("' . self::e($font) . '") format("truetype");font-display:swap;}'
-            . 'body,button,input,textarea,select,h1,h2,h3,h4,h5,h6,p,a,li,blockquote{font-family:"AaJiangShou","PingFang SC","Microsoft YaHei",sans-serif !important;}'
-            . '</style>';
+        // The theme ships its own subset WOFF2; do not inject a second 11 MB TTF.
     }
 
     public static function deactivate()

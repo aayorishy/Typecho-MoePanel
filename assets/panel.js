@@ -1351,6 +1351,76 @@
         window.__spSelectObserver.observe(document.body, { childList: true, subtree: true });
     }
 
+    function enhancePageFields() {
+        var data = document.getElementById('sp-page-options');
+        var fieldset = document.getElementById('custom-field');
+        if (!data || !fieldset) return;
+
+        var pages = [];
+        try { pages = JSON.parse(data.textContent || '[]'); } catch (error) { pages = []; }
+        if (!Array.isArray(pages) || !pages.length) return;
+
+        function enhanceRow(row) {
+            if (!row || row.dataset.spPagePicker === '1') return;
+            var nameInput = row.querySelector('input[name="fieldNames[]"]');
+            var label = row.querySelector('.field-name > label:not(.sr-only)');
+            var name = (nameInput ? nameInput.value : '') || (label ? label.textContent : '');
+            name = String(name || '').trim();
+
+            if (!/^(page|pages|page_id|pageId|页面|页面ID)$/i.test(name) && !/页面/.test(name)) return;
+
+            var valueInput = row.querySelector('textarea[name="fieldValues[]"], input[name="fieldValues[]"]');
+            if (!valueInput) return;
+
+            var useId = /page_?id|页面ID/i.test(name);
+            var select = document.createElement('select');
+            select.className = 'sp-page-picker';
+            select.innerHTML = '<option value="">选择当前主题页面</option>';
+
+            pages.forEach(function (page) {
+                var option = document.createElement('option');
+                option.value = useId ? String(page.cid) : String(page.slug || page.cid);
+                option.textContent = page.title + (page.slug ? '  /' + page.slug : '');
+                select.appendChild(option);
+            });
+
+            var current = String(valueInput.value || '').trim();
+            var matched = pages.some(function (page) {
+                var value = useId ? String(page.cid) : String(page.slug || page.cid);
+                if (value === current || page.title === current) {
+                    select.value = value;
+                    return true;
+                }
+                return false;
+            });
+
+            if (!matched) select.value = '';
+            valueInput.style.display = 'none';
+            valueInput.parentNode.insertBefore(select, valueInput.nextSibling);
+
+            select.addEventListener('change', function () {
+                valueInput.value = select.value;
+                valueInput.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
+            row.dataset.spPagePicker = '1';
+        }
+
+        fieldset.querySelectorAll('.field').forEach(enhanceRow);
+
+        if (window.MutationObserver) {
+            new MutationObserver(function (mutations) {
+                mutations.forEach(function (mutation) {
+                    mutation.addedNodes.forEach(function (node) {
+                        if (node.nodeType !== 1) return;
+                        if (node.classList && node.classList.contains('field')) enhanceRow(node);
+                        else if (node.querySelectorAll) node.querySelectorAll('.field').forEach(enhanceRow);
+                    });
+                });
+            }).observe(fieldset, { childList: true, subtree: true });
+        }
+    }
+
     function init() {
         root.classList.add('sp-js');
         ensureShellFallback();
@@ -1363,7 +1433,7 @@
         animateCounters();
         setupConfirmModal();
 
-        [enhanceWriteArea, setupSidebarToggle, setupBackToTop, setupReveal, setupClock, setupRipple, setupCustomSelects].forEach(function (step) {
+        [enhanceWriteArea, enhancePageFields, setupSidebarToggle, setupBackToTop, setupReveal, setupClock, setupRipple, setupCustomSelects].forEach(function (step) {
             try {
                 step();
             } catch (error) {

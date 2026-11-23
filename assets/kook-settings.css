@@ -5210,3 +5210,61 @@ html[data-sp-theme="dark"] .sp-ks-kook-card {
     color: var(--sp-muted-2);
     font-size: 7px;
 }
+
+/* ---------- plugin settings: fill available workspace ---------- */
+body.sp-plugin-config .body.container,
+body.sp-plugin-config .container,
+body.sp-plugin-config .typecho-page-main,
+body.sp-plugin-config .typecho-page-main > [class*="col-"],
+body.sp-plugin-config .col-mb-12 {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+body.sp-plugin-config .body.container {
+    padding-right: clamp(20px, 3vw, 48px);
+    padding-left: clamp(20px, 3vw, 48px);
+}
+
+body.sp-plugin-config .typecho-page-main {
+    margin-right: 0;
+    margin-left: 0;
+}
+
+body.sp-plugin-config .sp-ks-layout {
+    grid-template-columns: 210px minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+    body.sp-plugin-config .sp-ks-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Hard override: MoePanel settings page must fill the workspace. */
+body.sp-plugin-config .main,
+body.sp-plugin-config .main .body.container,
+body.sp-plugin-config .typecho-page-main,
+body.sp-plugin-config .typecho-page-main > .col-mb-12,
+body.sp-plugin-config .typecho-page-main > .col-tb-8,
+body.sp-plugin-config .typecho-page-main > .col-tb-offset-2,
+body.sp-page-options-plugin .main,
+body.sp-page-options-plugin .main .body.container,
+body.sp-page-options-plugin .typecho-page-main,
+body.sp-page-options-plugin .typecho-page-main > .col-mb-12,
+body.sp-page-options-plugin .typecho-page-main > .col-tb-8,
+body.sp-page-options-plugin .typecho-page-main > .col-tb-offset-2 {
+    width: 100% !important;
+    max-width: none !important;
+    flex: 0 0 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+body.sp-plugin-config .sp-ks-layout,
+body.sp-page-options-plugin .sp-ks-layout,
+body.sp-plugin-config .sp-ks-panel,
+body.sp-page-options-plugin .sp-ks-panel {
+    width: 100% !important;
+    max-width: none !important;
+}

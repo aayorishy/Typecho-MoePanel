@@ -142,7 +142,7 @@ class Controller
 
         $availability = self::methodAvailability($settings);
 
-        if (!$availability['any'] || !self::hasMapping($settings)) {
+        if (!$availability['any']) {
             self::renderFatal($settings, 'KOOK 登录未配置', self::missingConfigMessage($settings, $availability));
             return;
         }
@@ -212,21 +212,41 @@ class Controller
 
             if (!empty($result['ok'])) {
                 self::clearAuthCookies();
+                $kookId = (string) $result['kook_id'];
+                $uid = (int) ($result['uid'] ?? 0);
 
-                if (!Auth::completeLogin(
-                    (int) $result['uid'],
-                    (string) $result['kook_id'],
-                    $settings,
-                    self::clientIp()
-                )) {
+                if ($uid > 0) {
+                    if (!Auth::completeLogin($uid, $kookId, $settings, self::clientIp())) {
+                        self::renderLoginPage($settings, [
+                            'error' => 'Typecho 用户登录失败，请稍后再试。',
+                            'step' => 'identity',
+                        ]);
+                        return;
+                    }
+                    self::redirect((string) Options::alloc()->adminUrl);
+                    return;
+                }
+
+                if ((int) $uid > 0) {
+                    if (!Auth::completeLogin((int) $uid, $kookId, $settings, self::clientIp())) {
+                        self::renderLoginPage($settings, [
+                            'error' => '站点所有者登录失败，请稍后再试。',
+                            'step' => 'identity',
+                        ]);
+                        return;
+                    }
+                    self::redirect((string) Options::alloc()->adminUrl);
+                    return;
+                }
+
+                if (!Auth::completeGuestLogin($kookId, $settings, self::clientIp())) {
                     self::renderLoginPage($settings, [
-                        'error' => 'Typecho 用户不存在或登录失败。',
+                        'error' => 'KOOK 登录失败，请重新获取验证码。',
                         'step' => 'identity',
                     ]);
                     return;
                 }
-
-                self::redirect((string) Options::alloc()->adminUrl);
+                self::redirect((string) Options::alloc()->siteUrl);
                 return;
             }
 
@@ -320,27 +340,46 @@ class Controller
 
         $kookId = (string) ($user['id'] ?? '');
         $uid = Auth::uidFor($settings, $kookId);
-
-        if (null === $uid || !Auth::userExists($uid)) {
-            self::renderLoginPage($settings, [
-                'error' => '该 KOOK 账号未绑定 Typecho 用户。',
-                'step' => 'identity',
-            ]);
-            return;
+        if (null !== $uid && !Auth::userExists($uid)) {
+            $uid = null;
         }
 
-        Auth::saveProfile($user, $uid);
+        Auth::saveProfile($user, $uid ?? 0);
         self::clearAuthCookies();
 
-        if (!Auth::completeLogin($uid, $kookId, $settings, self::clientIp())) {
+        if ($uid > 0) {
+            if (!Auth::completeLogin($uid, $kookId, $settings, self::clientIp())) {
+                self::renderLoginPage($settings, [
+                    'error' => 'Typecho 用户登录失败，请稍后再试。',
+                    'step' => 'identity',
+                ]);
+                return;
+            }
+            self::redirect((string) Options::alloc()->adminUrl);
+            return;
+        }
+
+        if (null !== $uid && $uid > 0) {
+            if (!Auth::completeLogin($uid, $kookId, $settings, self::clientIp())) {
+                self::renderLoginPage($settings, [
+                    'error' => '站点所有者登录失败，请稍后再试。',
+                    'step' => 'identity',
+                ]);
+                return;
+            }
+            self::redirect((string) Options::alloc()->adminUrl);
+            return;
+        }
+
+        if (!Auth::completeGuestLogin($kookId, $settings, self::clientIp())) {
             self::renderLoginPage($settings, [
-                'error' => 'Typecho 用户不存在或登录失败。',
+                'error' => 'KOOK 登录失败。',
                 'step' => 'identity',
             ]);
             return;
         }
 
-        self::redirect((string) Options::alloc()->adminUrl);
+        self::redirect((string) Options::alloc()->siteUrl);
     }
 
     /**
@@ -1019,6 +1058,10 @@ class Controller
             if ('1' === (string) $settings['codeLogin'] && !$codeEnabled) {
                 $warnings[] = '验证码登录已启用，但机器人 Token 尚未填写。';
             }
+
+            if (!self::hasMapping($settings)) {
+                $warnings[] = '未配置所有者 KOOK ID；KOOK 登录后将仅能留言，不能进入后台。';
+            }
         }
 
         $context = array_merge([
@@ -1087,7 +1130,7 @@ class Controller
         }
 
         if (!self::hasMapping($settings)) {
-            $reasons[] = '尚未配置所有者 KOOK ID / Typecho UID，无法完成账号映射。';
+            $reasons[] = '尚未配置所有者映射；KOOK 登录仍可用于留言。';
         }
 
         return implode(' ', $reasons) ?: '请检查 MoePanel 的 KOOK 设置。';

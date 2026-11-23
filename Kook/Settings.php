@@ -386,10 +386,21 @@ class Settings
             . "`identify_num` VARCHAR(32) NOT NULL DEFAULT '',"
             . "`nickname` VARCHAR(128) NOT NULL DEFAULT '',"
             . "`avatar` VARCHAR(500) NOT NULL DEFAULT '',"
+            . "`email` VARCHAR(150) NOT NULL DEFAULT '',"
+            . "`homepage` VARCHAR(500) NOT NULL DEFAULT '',"
+            . "`display_name` VARCHAR(128) NOT NULL DEFAULT '',"
             . "`updated` INTEGER NOT NULL DEFAULT 0"
             . ")";
 
         $db->query($sql, Db::WRITE);
+
+        foreach (['email' => "VARCHAR(150) NOT NULL DEFAULT ''", 'homepage' => "VARCHAR(500) NOT NULL DEFAULT ''", 'display_name' => "VARCHAR(128) NOT NULL DEFAULT ''"] as $column => $definition) {
+            try {
+                $db->query("ALTER TABLE `{$prefix}" . self::PROFILE_TABLE . "` ADD COLUMN `{$column}` {$definition}", Db::WRITE);
+            } catch (\Throwable $e) {
+                // Column already exists.
+            }
+        }
     }
 
     public static function resetCache(): void

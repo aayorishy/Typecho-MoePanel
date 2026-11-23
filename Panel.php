@@ -44,8 +44,26 @@ class Panel
                 $html = self::renderDashboard($html);
             }
 
+            $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+
+            if (('write-post.php' === $script || 'write-page.php' === $script)
+                && strpos($html, 'id="custom-field"') !== false) {
+                $html = self::injectPageOptions($html);
+            }
+
+            if ('manage-comments.php' === $script && strpos($html, 'comment-author') !== false) {
+                $html = self::syncCommentAuthors($html);
+            }
+
             return $html;
         } catch (\Throwable $error) {
+            @file_put_contents(
+                sys_get_temp_dir() . '/moepanel-panel-error.log',
+                '[' . date('Y-m-d H:i:s') . '] ' . get_class($error) . ': ' . $error->getMessage()
+                . ' in ' . $error->getFile() . ':' . $error->getLine() . PHP_EOL,
+                FILE_APPEND
+            );
+
             return $html;
         }
     }
@@ -508,6 +526,134 @@ class Panel
         }
 
         return ['logoUrl' => '', 'logoDarkUrl' => ''];
+    }
+
+    private static function syncCommentAuthors(string $html): string
+    {
+        if (!class_exists('TypechoPlugin\\MoePanel\\Kook\\Auth')) {
+            return $html;
+        }
+
+        try {
+            if (!preg_match_all('~id="comment-(\d+)"~i', $html, $matches)) {
+                return $html;
+            }
+
+            $coids = array_values(array_unique(array_map('intval', $matches[1])));
+
+            if ([] === $coids) {
+                return $html;
+            }
+
+            $db = \Typecho\Db::get();
+            $rows = $db->fetchAll(
+                $db->select('coid', 'authorId')
+                    ->from('table.comments')
+                    ->where('coid IN (' . implode(',', array_map('intval', $coids)) . ')')
+            );
+            $owners = [];
+
+            foreach ($rows as $row) {
+                $owners[(int) $row['coid']] = (int) $row['authorId'];
+            }
+
+            $profiles = [];
+
+            foreach (array_unique(array_values($owners)) as $uid) {
+                if ($uid <= 0) {
+                    continue;
+                }
+
+                $profile = \TypechoPlugin\MoePanel\Kook\Auth::profileForUid($uid);
+
+                if (is_array($profile) && !empty($profile)) {
+                    $profiles[$uid] = $profile;
+                }
+            }
+
+            return preg_replace_callback(
+                '~<tr\s+id="comment-(\d+)"[^>]*>.*?</tr>~is',
+                static function (array $match) use ($owners, $profiles): string {
+                    $coid = (int) $match[1];
+                    $uid = $owners[$coid] ?? 0;
+
+                    if ($uid <= 0 || !isset($profiles[$uid])) {
+                        return $match[0];
+                    }
+
+                    $profile = $profiles[$uid];
+                    $avatar = trim((string) ($profile['avatar'] ?? ''));
+                    $name = trim((string) ($profile['nickname'] ?? ''));
+
+                    if ('' === $name) {
+                        $name = trim((string) ($profile['username'] ?? ''));
+                    }
+
+                    $identify = trim((string) ($profile['identify_num'] ?? ''));
+                    $display = $name . ('' !== $identify ? '#' . $identify : '');
+                    $row = $match[0];
+
+                    if ('' !== $avatar) {
+                        $image = '<img class="sp-comment-avatar" src="' . self::e($avatar)
+                            . '" alt="" width="40" height="40" loading="lazy" referrerpolicy="no-referrer">';
+                        $row = preg_replace(
+                            '~<div class="comment-avatar">.*?</div>~s',
+                            '<div class="comment-avatar">' . $image . '</div>',
+                            $row,
+                            1
+                        ) ?? $row;
+                    }
+
+                    if ('' !== $display) {
+                        $row = preg_replace(
+                            '~<strong class="comment-author">.*?</strong>~s',
+                            '<strong class="comment-author">' . self::e($display) . '</strong>',
+                            $row,
+                            1
+                        ) ?? $row;
+                    }
+
+                    return $row;
+                },
+                $html
+            ) ?? $html;
+        } catch (\Throwable $ignored) {
+            return $html;
+        }
+    }
+
+    private static function injectPageOptions(string $html): string
+    {
+        try {
+            $db = \Typecho\Db::get();
+            $rows = $db->fetchAll(
+                $db->select('cid', 'title', 'slug')
+                    ->from('table.contents')
+                    ->where('type = ?', 'page')
+                    ->where('status = ?', 'publish')
+                    ->order('cid', \Typecho\Db::SORT_ASC)
+            );
+            $pages = [];
+
+            foreach ($rows as $row) {
+                $pages[] = [
+                    'cid' => (int) ($row['cid'] ?? 0),
+                    'title' => (string) ($row['title'] ?? ''),
+                    'slug' => (string) ($row['slug'] ?? ''),
+                ];
+            }
+
+            $json = json_encode($pages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+            $script = '<script type="application/json" id="sp-page-options">' . $json . '</script>';
+
+            if (false !== stripos($html, '</body>')) {
+                return preg_replace('~</body>~i', $script . '</body>', $html, 1) ?? $html;
+            }
+
+            return $html . $script;
+        } catch (\Throwable $ignored) {
+            return $html;
+        }
     }
 
     private static function view(string $view, array $data): string

@@ -30,17 +30,17 @@ class Auth
         try {
             $user = $client->resolveIdentity($identity, (string) ($settings['guildId'] ?? ''));
         } catch (KookException $e) {
+            self::logAuth('resolve', $e->getMessage(), $identity);
             return ['ok' => false, 'error' => $e->getMessage(), 'step' => 'identity'];
         }
 
         $kookId = (string) $user['id'];
         $uid = self::uidFor($settings, $kookId);
-
-        if (null === $uid || !self::userExists($uid)) {
-            return ['ok' => false, 'error' => '该 KOOK 账号未绑定 Typecho 用户', 'step' => 'identity'];
+        if (null !== $uid && !self::userExists($uid)) {
+            $uid = null;
         }
 
-        self::saveProfile($user, $uid);
+        self::saveProfile($user, $uid ?? 0);
         $db = Db::get();
 
         try {
@@ -125,10 +125,12 @@ class Auth
             );
         } catch (KookException $e) {
             self::deleteFlow($db, $flow);
+            self::logAuth('send', $e->getMessage(), $display);
             return ['ok' => false, 'error' => '验证码发送失败：' . $e->getMessage(), 'step' => 'identity'];
         } catch (\Throwable $e) {
             self::deleteFlow($db, $flow);
-            return ['ok' => false, 'error' => '验证码发送失败，请稍后再试', 'step' => 'identity'];
+            self::logAuth('send', $e->getMessage(), $display);
+            return ['ok' => false, 'error' => '验证码发送失败：' . $e->getMessage(), 'step' => 'identity'];
         }
 
         return [
@@ -213,15 +215,19 @@ class Auth
 
         $kookId = (string) $row['kook_id'];
         $uid = self::uidFor($settings, $kookId);
-
-        if (null === $uid || !self::userExists($uid)) {
-            self::deleteFlow($db, $flow);
-            return ['ok' => false, 'error' => '该 KOOK 账号未绑定 Typecho 用户', 'step' => 'identity'];
+        if (null !== $uid && !self::userExists($uid)) {
+            $uid = null;
         }
 
         self::deleteFlow($db, $flow);
 
-        return ['ok' => true, 'uid' => $uid, 'kook_id' => $kookId];
+        return [
+            'ok' => true,
+            'uid' => $uid,
+            'guest' => null === $uid,
+            'kook_id' => $kookId,
+            'nickname' => (string) ($row['nickname'] ?? ''),
+        ];
     }
 
     /**
@@ -284,6 +290,132 @@ class Auth
         }
 
         return true;
+    }
+
+    public static function completeGuestLogin(string $kookId, array $settings, string $ip): bool
+    {
+        $profile = self::profileForKook($kookId);
+        if (!is_array($profile)) {
+            return false;
+        }
+
+        $displayName = trim((string) ($profile['display_name'] ?? ''));
+        $kookName = trim((string) ($profile['nickname'] ?? ''));
+        $payload = [
+            'kook_id' => $kookId,
+            'nickname' => $displayName !== '' ? $displayName : $kookName,
+            'username' => trim((string) ($profile['username'] ?? '')),
+            'identify_num' => trim((string) ($profile['identify_num'] ?? '')),
+            'avatar' => trim((string) ($profile['avatar'] ?? '')),
+            'email' => trim((string) ($profile['email'] ?? '')),
+            'homepage' => trim((string) ($profile['homepage'] ?? '')),
+            'display_name' => trim((string) ($profile['display_name'] ?? '')),
+            'exp' => time() + 2592000,
+        ];
+        self::writeGuestCookie($payload);
+        return true;
+    }
+
+    public static function guest(): ?array
+    {
+        $raw = (string) ($_COOKIE['yume_kook_guest'] ?? '');
+        if ($raw === '' || strpos($raw, '.') === false) {
+            return null;
+        }
+        [$body, $sig] = explode('.', $raw, 2);
+        $expected = hash_hmac('sha256', $body, self::cookieSecret());
+        if (!hash_equals($expected, $sig)) {
+            return null;
+        }
+        $data = json_decode((string) base64_decode(strtr($body, '-_', '+/')), true);
+        if (!is_array($data) || (int) ($data['exp'] ?? 0) < time()) {
+            return null;
+        }
+        return $data;
+    }
+
+    public static function updateGuestProfile(string $nickname, string $email, string $homepage): array
+    {
+        $guest = self::guest();
+        if (!is_array($guest)) {
+            return [false, '请先使用 KOOK 登录。'];
+        }
+        $nickname = trim($nickname);
+        $email = trim($email);
+        $homepage = trim($homepage);
+        if ($nickname === '' || mb_strlen($nickname, 'UTF-8') > 32) {
+            return [false, '昵称不能为空，且不能超过 32 个字符。'];
+        }
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return [false, '邮箱格式不正确。'];
+        }
+        if ($homepage !== '' && !filter_var($homepage, FILTER_VALIDATE_URL)) {
+            return [false, '个人主页地址格式不正确。'];
+        }
+        $kookId = (string) ($guest['kook_id'] ?? '');
+        if ($kookId === '') {
+            return [false, 'KOOK 身份已失效，请重新登录。'];
+        }
+        try {
+            Settings::createProfileTableIfNeeded();
+            $db = Db::get();
+            $db->query($db->update('table.' . Settings::PROFILE_TABLE)
+                ->rows(['email' => $email, 'homepage' => $homepage, 'display_name' => $nickname, 'updated' => time()])
+                ->where('kook_id = ?', $kookId));
+        } catch (\Throwable $e) {
+            return [false, '资料保存失败，请稍后再试。'];
+        }
+        $guest['nickname'] = $nickname;
+        $guest['email'] = $email;
+        $guest['homepage'] = $homepage;
+        $guest['display_name'] = $nickname;
+        self::writeGuestCookie($guest);
+        return [true, '资料已更新。'];
+    }
+
+    public static function clearGuest(): void
+    {
+        setcookie('yume_kook_guest', '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    public static function profileForKook(string $kookId): ?array
+    {
+        try {
+            Settings::createProfileTableIfNeeded();
+            $db = Db::get();
+            $row = $db->fetchRow(
+                $db->select()->from('table.' . Settings::PROFILE_TABLE)
+                    ->where('kook_id = ?', $kookId)->order('updated', Db::SORT_DESC)->limit(1)
+            );
+            return !empty($row) ? $row : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private static function writeGuestCookie(array $payload): void
+    {
+        $body = rtrim(strtr(base64_encode(json_encode($payload, JSON_UNESCAPED_UNICODE)), '+/', '-_'), '=');
+        $value = $body . '.' . hash_hmac('sha256', $body, self::cookieSecret());
+        setcookie('yume_kook_guest', $value, [
+            'expires' => (int) $payload['exp'],
+            'path' => '/',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    private static function cookieSecret(): string
+    {
+        $secret = (string) Options::alloc()->secret;
+        return $secret !== '' ? $secret : 'yume-kook-guest';
     }
 
     /**
@@ -422,6 +554,15 @@ class Auth
         Settings::createFlowTableIfNeeded();
         Settings::createProfileTableIfNeeded();
         self::$flowTableReady = true;
+    }
+
+    private static function logAuth(string $stage, string $message, string $identity = ''): void
+    {
+        try {
+            $line = '[' . date('Y-m-d H:i:s') . '] ' . $stage . ' | ' . $message . ' | ' . $identity . PHP_EOL;
+            @file_put_contents(__TYPECHO_ROOT_DIR__ . '/usr/yume-kook-auth.log', $line, FILE_APPEND | LOCK_EX);
+        } catch (\Throwable $e) {
+        }
     }
 
     public static function displayIdentity(array $user): string
