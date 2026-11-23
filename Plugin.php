@@ -562,6 +562,7 @@ class Plugin implements PluginInterface
         ] as $legacyKey => $legacyDefault) {
             $form->addInput(new Hidden(
                 $legacyKey,
+                null,
                 (string) ($settings[$legacyKey] ?? $legacyDefault)
             ));
         }
